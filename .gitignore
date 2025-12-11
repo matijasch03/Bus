@@ -1,0 +1,17 @@
+# Visual Studio temporary files
+.vs/
+*.user
+*.suo
+*.ncb
+*.opensdf
+
+# Binaries and intermediate files
+[Dd]ebug/
+[Rr]elease/
+x64/
+build/
+*.obj
+*.exe
+*.dll
+*.pdb
+*.ilk

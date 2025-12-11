@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Autobus/Autobus.vcxproj" Id="2baa2380-dd87-4a10-860c-4c3285a22a79" />
+</Solution>
