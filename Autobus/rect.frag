@@ -3,9 +3,9 @@
 in vec2 chTex;
 out vec4 outCol;
 
-uniform sampler2D uTex0; // Textura autobusa
+uniform sampler2D uTex0; 
 
 void main()
 {
-    outCol = texture(uTex0, chTex);
+    outCol = texture(uTex0, chTex); // Koristi se samo tekstura 0
 }

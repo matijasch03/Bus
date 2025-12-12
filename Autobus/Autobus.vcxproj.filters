@@ -18,6 +18,9 @@
     <Image Include="..\..\..\..\OneDrive\Radna površina\DM\avtobus.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="res\busstation.jpeg">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Util.h">
@@ -33,6 +36,12 @@
       <Filter>Source Files</Filter>
     </None>
     <None Include="rect.frag">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="color.frag">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="color.vert">
       <Filter>Source Files</Filter>
     </None>
   </ItemGroup>

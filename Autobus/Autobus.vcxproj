@@ -130,12 +130,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <Image Include="..\..\..\..\OneDrive\Radna površina\DM\avtobus.png" />
+    <Image Include="res\busstation.jpeg" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\V3 Solution\stb_image.h" />
     <ClInclude Include="Util.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="color.frag" />
+    <None Include="color.vert" />
     <None Include="packages.config" />
     <None Include="rect.frag" />
     <None Include="rect.vert" />
