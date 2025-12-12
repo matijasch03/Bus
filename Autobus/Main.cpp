@@ -19,7 +19,7 @@ unsigned openIconTexture;
 unsigned controlIconTexture;
 bool showControls = false;
 
-int screenWidth = 1800;
+int screenWidth = 1600;
 int screenHeight = 1200;
 const float BUS_SCALE = 0.25f; 
 const float STATION_SCALE = 0.15f;
@@ -32,6 +32,8 @@ int currentStationIndex = 0;
 float currentSegmentTime = 0.0f; // Vreme proteklo od pocetka segmenta
 bool isWaiting = true; // Da li autobus ceka na stanici
 float waitTimer = 0.0f; // Tajmer cekanja
+int passengersNumber = 0;
+int punishmentNumber = 0;
 
 double lastTime; // Koristi se za deltaTime
 
@@ -196,9 +198,27 @@ void drawControlIcon(unsigned int rectShader, unsigned int VAO, unsigned int con
 
 // Funkcija za obradu unosa sa tastature
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    if (key == GLFW_KEY_K && action == GLFW_PRESS) {
-        if (isWaiting) {
+    if (isWaiting) {
+        if (key == GLFW_KEY_K && action == GLFW_PRESS && !showControls) {
             showControls = true;
+            if (passengersNumber != 0)
+			    punishmentNumber = rand() % passengersNumber;
+            passengersNumber++;
+            std::cout << "Broj putnika: " << passengersNumber << std::endl;
+        }
+    }
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+    if (isWaiting) {
+        if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && passengersNumber < 50) {
+            passengersNumber++;
+            std::cout << "Broj putnika: " << passengersNumber << std::endl;
+        }
+
+        if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS && passengersNumber > 0) {
+            passengersNumber--;
+            std::cout << "Broj putnika: " << passengersNumber << std::endl;
         }
     }
 }
@@ -220,6 +240,7 @@ int main()
 
     srand(time(NULL));
     glfwSetKeyCallback(window, key_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
 
     // --- UÈITAVANJE TEKSTURA I ŠEJDERA ---
     preprocessTexture(busTexture, "res/avtobus.png");
@@ -335,10 +356,15 @@ int main()
 
             if (t >= 1.0f) {
                 // Stigli smo do sledece stanice!
+                if (showControls) {
+					passengersNumber -= punishmentNumber + 1;
+                    std::cout << "Kazna zbog kontrole: " << punishmentNumber << " putnika." << std::endl;
+                    std::cout << "Broj putnika nakon kazne: " << passengersNumber << std::endl;
+                    showControls = false;
+					punishmentNumber = 0;
+				}
                 t = 1.0f; 
                 isWaiting = true;
-                showControls = false;
-
             }
 
             // Polazna stanica (A)
