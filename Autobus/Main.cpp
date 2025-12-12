@@ -16,6 +16,8 @@ unsigned int colorShader;
 unsigned int rectShader;
 unsigned closedIconTexture;
 unsigned openIconTexture;
+unsigned controlIconTexture;
+bool showControls = false;
 
 int screenWidth = 1800;
 int screenHeight = 1200;
@@ -172,6 +174,35 @@ void drawStatusIcon(unsigned int rectShader, unsigned int VAO,
     glBindVertexArray(0);
 }
 
+void drawControlIcon(unsigned int rectShader, unsigned int VAO, unsigned int controlTex) {
+    glUseProgram(rectShader);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, controlTex);
+
+    const float CONTROL_SCALE = 0.30f;
+    const float MARGIN = 0.05f;
+
+    const float CONTROL_X = -1.0f + (CONTROL_SCALE / 2.0f) + MARGIN;
+    const float CONTROL_Y = 1.0f - (CONTROL_SCALE / 2.0f) - MARGIN;
+
+    glUniform1f(glGetUniformLocation(rectShader, "uX"), CONTROL_X);
+    glUniform1f(glGetUniformLocation(rectShader, "uY"), CONTROL_Y);
+    glUniform1f(glGetUniformLocation(rectShader, "uS"), CONTROL_SCALE);
+
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    glBindVertexArray(0);
+}
+
+// Funkcija za obradu unosa sa tastature
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if (key == GLFW_KEY_K && action == GLFW_PRESS) {
+        if (isWaiting) {
+            showControls = true;
+        }
+    }
+}
+
 
 int main()
 {
@@ -188,12 +219,14 @@ int main()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     srand(time(NULL));
+    glfwSetKeyCallback(window, key_callback);
 
     // --- UÈITAVANJE TEKSTURA I ŠEJDERA ---
     preprocessTexture(busTexture, "res/avtobus.png");
     preprocessTexture(stationTexture, "res/busstation.jpeg");
     preprocessTexture(closedIconTexture, "res/zatvorena.png");
     preprocessTexture(openIconTexture, "res/otvorena.png");
+    preprocessTexture(controlIconTexture, "res/kontrola.png");
 
     rectShader = createShader("rect.vert", "rect.frag");
     glUseProgram(rectShader);
@@ -292,7 +325,6 @@ int main()
                 isWaiting = false;
                 currentSegmentTime = 0.0f; // reset
                 waitTimer = 0.0f;
-
 				currentStationIndex = (currentStationIndex + 1) % NUM_STATIONS; // Sledeæa stanica
             }
         }
@@ -305,6 +337,8 @@ int main()
                 // Stigli smo do sledece stanice!
                 t = 1.0f; 
                 isWaiting = true;
+                showControls = false;
+
             }
 
             // Polazna stanica (A)
@@ -319,15 +353,18 @@ int main()
 
             busX = xA * (1.0f - t) + xB * t;
             busY = yA * (1.0f - t) + yB * t;
-
-            // Crtanje putanje, stanica i autobusa
-            drawPath(colorShader, VAOpath, totalPathPoints);
-            drawStations(rectShader, VAOstation, stationPositions, NUM_STATIONS);
-            drawBus(rectShader, VAObus, busX, busY);
-            drawStatusIcon(rectShader, VAObus, closedIconTexture, openIconTexture, isWaiting);
-
-            glfwSwapBuffers(window);
         }
+
+        // Crtanje putanje, stanica i autobusa
+        drawPath(colorShader, VAOpath, totalPathPoints);
+        drawStations(rectShader, VAOstation, stationPositions, NUM_STATIONS);
+        drawBus(rectShader, VAObus, busX, busY);
+        drawStatusIcon(rectShader, VAObus, closedIconTexture, openIconTexture, isWaiting);
+        if (showControls) {
+            drawControlIcon(rectShader, VAObus, controlIconTexture);
+        }
+
+        glfwSwapBuffers(window);
     }
 
     // Èišæenje
