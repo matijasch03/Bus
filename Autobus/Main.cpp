@@ -2,6 +2,9 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <cmath>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
 #include "Util.h"
 
 #define M_PI 3.14159265358979323846
@@ -11,11 +14,24 @@ unsigned busTexture;
 unsigned stationTexture;
 unsigned int colorShader;
 unsigned int rectShader;
+unsigned closedIconTexture;
+unsigned openIconTexture;
 
 int screenWidth = 1800;
 int screenHeight = 1200;
 const float BUS_SCALE = 0.25f; 
 const float STATION_SCALE = 0.15f;
+
+// --- Konstante kretanja ---
+const float TRAVEL_TIME_SECONDS = 5.0f; // Vreme putovanja izmedju dve stanice (ukupna duzina puta)
+const float STATION_WAIT_SECONDS = 10.0f; // Vreme cekanja na stanici
+
+int currentStationIndex = 0;
+float currentSegmentTime = 0.0f; // Vreme proteklo od pocetka segmenta
+bool isWaiting = true; // Da li autobus ceka na stanici
+float waitTimer = 0.0f; // Tajmer cekanja
+
+double lastTime; // Koristi se za deltaTime
 
 int endProgram(std::string message) {
     std::cerr << message << std::endl;
@@ -58,14 +74,14 @@ void formVAOTextured(float* vertices, size_t size, unsigned int& VAO) {
 }
 
 // Funkcija za formiranje VAO-a samo sa pozicijom (za crvenu putanju)
-void formVAOPosition(float* vertices, size_t size, unsigned int& VAO) {
+void formVAOPosition(std::vector<float> vertices, size_t size, unsigned int& VAO) {
     unsigned int VBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, size, vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, size, vertices.data(), GL_STATIC_DRAW);
 
     // Atribut 0 (pozicija): x, y
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
@@ -75,6 +91,10 @@ void formVAOPosition(float* vertices, size_t size, unsigned int& VAO) {
     glBindVertexArray(0);
 }
 
+float randomOffset(float range) {
+    // Generisanje broja izmedju 0 i 1, pa skaliranje i pomeranje
+    return (float(rand()) / RAND_MAX * 2.0f - 1.0f) * range;
+}
 
 void drawPath(unsigned int pathShader, unsigned int VAOpath, int numPoints) {
     glUseProgram(pathShader);
@@ -127,6 +147,31 @@ void drawBus(unsigned int rectShader, unsigned int VAObus, float currentX, float
     glBindVertexArray(0);
 }
 
+void drawStatusIcon(unsigned int rectShader, unsigned int VAO,
+    unsigned int closedTex, unsigned int openTex,
+    bool isWaiting) {
+
+    glUseProgram(rectShader);
+
+    // Biranje teksture
+    unsigned int currentTex = isWaiting ? openTex : closedTex;
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, currentTex);
+
+    const float ICON_SCALE = 0.2f; // Skaliranje ikone
+    const float ICON_X = 1.0f - (ICON_SCALE / 2.0f) - 0.05f;
+    const float ICON_Y = 1.0f - (ICON_SCALE / 2.0f) - 0.05f;
+
+    glUniform1f(glGetUniformLocation(rectShader, "uX"), ICON_X);
+    glUniform1f(glGetUniformLocation(rectShader, "uY"), ICON_Y);
+    glUniform1f(glGetUniformLocation(rectShader, "uS"), ICON_SCALE);
+
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    glBindVertexArray(0);
+}
+
 
 int main()
 {
@@ -142,9 +187,13 @@ int main()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    srand(time(NULL));
+
     // --- UÈITAVANJE TEKSTURA I ŠEJDERA ---
     preprocessTexture(busTexture, "res/avtobus.png");
     preprocessTexture(stationTexture, "res/busstation.jpeg");
+    preprocessTexture(closedIconTexture, "res/zatvorena.png");
+    preprocessTexture(openIconTexture, "res/otvorena.png");
 
     rectShader = createShader("rect.vert", "rect.frag");
     glUseProgram(rectShader);
@@ -169,10 +218,40 @@ int main()
         stationPositions[2 * i + 1] = sin(angle) * b;
     }
 
-    // Temena za putanju
-    float verticesPath[NUM_STATIONS * 2];
-    for (int i = 0; i < NUM_STATIONS * 2; ++i) {
-        verticesPath[i] = stationPositions[i];
+    std::vector<float> pathVertices;
+    const int CURVE_POINTS_PER_SEGMENT = 5; // broj taèaka izmeðu dve stanice
+    const float WIGGLE_RANGE = 0.08f;
+
+    // Prolazimo kroz 10 segmenata (od Stanice i do Stanice i+1)
+    for (int i = 0; i < NUM_STATIONS; ++i) {
+
+        float x1 = stationPositions[2 * i];
+        float y1 = stationPositions[2 * i + 1];
+
+		float x2 = stationPositions[2 * ((i + 1) % NUM_STATIONS)]; // modul za povratak na prvu stanicu
+        float y2 = stationPositions[2 * ((i + 1) % NUM_STATIONS) + 1];
+
+        pathVertices.push_back(x1);
+        pathVertices.push_back(y1);
+
+		// Dodavanje krivudavih taèaka izmeðu dve stanice
+        for (int j = 1; j < CURVE_POINTS_PER_SEGMENT; ++j) {
+
+            // Faktor interpolacije (t ide od 0 do 1)
+            float t = (float)j / CURVE_POINTS_PER_SEGMENT;
+
+            // Linearna interpolacija (taèka na ravnoj liniji)
+            float interX = x1 * (1.0f - t) + x2 * t;
+            float interY = y1 * (1.0f - t) + y2 * t;
+
+            // Dodavanje nasumiènog pomeraja (WIGGLE)
+            float wiggleFactor = sin(t * M_PI);
+            float wiggleX = randomOffset(WIGGLE_RANGE * wiggleFactor);
+            float wiggleY = randomOffset(WIGGLE_RANGE * wiggleFactor);
+
+            pathVertices.push_back(interX + wiggleX);
+            pathVertices.push_back(interY + wiggleY);
+        }
     }
 
     // --- FORMIRANJE VAO-ova ---
@@ -183,7 +262,9 @@ int main()
     formVAOTextured(verticesStation, sizeof(verticesStation), VAOstation);
 
     unsigned int VAOpath;
-    formVAOPosition(verticesPath, sizeof(verticesPath), VAOpath);
+    size_t pathDataSize = pathVertices.size() * sizeof(float);
+    formVAOPosition(pathVertices, pathDataSize, VAOpath);
+    int totalPathPoints = pathVertices.size() / 2;
 
     // --- POZICIJA AUTOBUSA ---
     // Postavljamo autobus na prvu stanicu na putanji
@@ -191,24 +272,62 @@ int main()
     float busY = stationPositions[1];
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    lastTime = glfwGetTime();
 
     // Glavna render petlja
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
-
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // 1. Crtanje putanje (crvena linija)
-        drawPath(colorShader, VAOpath, NUM_STATIONS);
+        // 1. IZRAÈUNAVANJE VREMENA (DeltaTime)
+        double currentTime = glfwGetTime();
+        float deltaTime = (float)(currentTime - lastTime); // Vreme proteklo od proslog frejma
+        lastTime = currentTime;
 
-        // 2. Crtanje 10 STANICA (sada su smanjene)
-        drawStations(rectShader, VAOstation, stationPositions, NUM_STATIONS);
+        // 2. LOGIKA KRETANJA I STAJANJA
+        if (isWaiting) {
+            waitTimer += deltaTime;
+            if (waitTimer >= STATION_WAIT_SECONDS) {
+                isWaiting = false;
+                currentSegmentTime = 0.0f; // reset
+                waitTimer = 0.0f;
 
-        // 3. Crtanje AUTOBUSA (sada je smanjen i postavljen na liniju)
-        drawBus(rectShader, VAObus, busX, busY);
+				currentStationIndex = (currentStationIndex + 1) % NUM_STATIONS; // Sledeæa stanica
+            }
+        }
+        else {
+            // --- LOGIKA PUTOVANJA ---
+            currentSegmentTime += deltaTime;
+            float t = currentSegmentTime / TRAVEL_TIME_SECONDS;
 
-        glfwSwapBuffers(window);
+            if (t >= 1.0f) {
+                // Stigli smo do sledece stanice!
+                t = 1.0f; 
+                isWaiting = true;
+            }
+
+            // Polazna stanica (A)
+            int startIdx = ((currentStationIndex - 1 + NUM_STATIONS) % NUM_STATIONS) * 2;
+            float xA = stationPositions[startIdx];
+            float yA = stationPositions[startIdx + 1];
+
+            // Odredisna stanica (B)
+            int endIdx = currentStationIndex * 2;
+            float xB = stationPositions[endIdx];
+            float yB = stationPositions[endIdx + 1];
+
+            busX = xA * (1.0f - t) + xB * t;
+            busY = yA * (1.0f - t) + yB * t;
+
+            // Crtanje putanje, stanica i autobusa
+            drawPath(colorShader, VAOpath, totalPathPoints);
+            drawStations(rectShader, VAOstation, stationPositions, NUM_STATIONS);
+            drawBus(rectShader, VAObus, busX, busY);
+            drawStatusIcon(rectShader, VAObus, closedIconTexture, openIconTexture, isWaiting);
+
+            glfwSwapBuffers(window);
+        }
     }
 
     // Èišæenje
