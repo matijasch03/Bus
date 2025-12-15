@@ -8,8 +8,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-// Autor: Nedeljko Tesanovic
-// Opis: pomocne funkcije za ucitavanje sejdera i tekstura
+
 unsigned int compileShader(GLenum type, const char* source)
 {
     //Uzima kod u fajlu na putanji "source", kompajlira ga i vraca sejder tipa "type"
@@ -21,7 +20,7 @@ unsigned int compileShader(GLenum type, const char* source)
     {
         ss << file.rdbuf();
         file.close();
-        std::cout << "Uspjesno procitao fajl sa putanje \"" << source << "\"!" << std::endl;
+        std::cout << "Uspesno procitao fajl sa putanje \"" << source << "\"!" << std::endl;
     }
     else {
         ss << "";
@@ -32,8 +31,8 @@ unsigned int compileShader(GLenum type, const char* source)
 
     int shader = glCreateShader(type); //Napravimo prazan sejder odredjenog tipa (vertex ili fragment)
 
-    int success; //Da li je kompajliranje bilo uspjesno (1 - da)
-    char infoLog[512]; //Poruka o gresci (Objasnjava sta je puklo unutar sejdera)
+    int success; // uspesnost kompajliranja
+    char infoLog[512]; //Poruka o greski (Objasnjava sta je puklo unutar sejdera)
     glShaderSource(shader, 1, &sourceCode, NULL); //Postavi izvorni kod sejdera
     glCompileShader(shader); //Kompajliraj sejder
 
@@ -126,31 +125,43 @@ unsigned loadImageToTexture(const char* filePath) {
     }
 }
 
-GLFWcursor* loadImageToCursor(const char* filePath) {
+GLFWcursor* loadImageToCursor(const char* filePath)
+{
     int TextureWidth;
     int TextureHeight;
     int TextureChannels;
 
+    // Ucitavanje slike (stbi_load ce vratiti NULL ako je neuspesno)
     unsigned char* ImageData = stbi_load(filePath, &TextureWidth, &TextureHeight, &TextureChannels, 0);
 
-    if (ImageData != NULL)
+    if (ImageData == NULL)
     {
-        GLFWimage image;
-        image.width = TextureWidth;
-        image.height = TextureHeight;
-        image.pixels = ImageData;
-
-        // Tacka na površini slike kursora koja se ponaša kao hitboks
-        int hotspotX = TextureWidth / 5;
-        int hotspotY = TextureHeight / 6;
-
-        GLFWcursor* cursor = glfwCreateCursor(&image, hotspotX, hotspotY);
-        stbi_image_free(ImageData);
-        return cursor;
+        std::cerr << "Greska: Kursor nije ucitan! Putanja: " << filePath << std::endl;
+        // Nema potrebe za stbi_image_free(NULL), ali vracanje NULL je kljucno.
+        return nullptr;
     }
-    else {
-        std::cout << "Kursor nije ucitan! Putanja kursora: " << filePath << std::endl;
-        stbi_image_free(ImageData);
 
+    // --- Kreiranje kursora ---
+
+    GLFWimage image;
+    image.width = TextureWidth;
+    image.height = TextureHeight;
+    image.pixels = ImageData;
+
+    // Podesite Hotspot: Koristite sredinu (TextureWidth / 2) za univerzalni kursor
+    int hotspotX = TextureWidth / 2;
+    int hotspotY = TextureHeight / 2;
+
+    GLFWcursor* cursor = glfwCreateCursor(&image, hotspotX, hotspotY);
+
+    // *KLJUCNO*: Oslobadjanje memorije alocirane od strane stbi_load
+    stbi_image_free(ImageData);
+
+    if (cursor == NULL)
+    {
+        std::cerr << "Greska: Nije uspelo kreiranje GLFW kursora iz slike." << std::endl;
     }
+
+    return cursor;
+
 }

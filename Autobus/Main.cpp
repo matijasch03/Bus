@@ -9,7 +9,6 @@
 
 #define M_PI 3.14159265358979323846
 
-
 unsigned busTexture;
 unsigned stationTexture;
 unsigned int colorShader;
@@ -25,13 +24,13 @@ const float BUS_SCALE = 0.25f;
 const float STATION_SCALE = 0.15f;
 
 // --- Konstante kretanja ---
-const float TRAVEL_TIME_SECONDS = 5.0f; // Vreme putovanja izmedju dve stanice (ukupna duzina puta)
-const float STATION_WAIT_SECONDS = 10.0f; // Vreme cekanja na stanici
+const float TRAVEL_TIME_SECONDS = 5.0f;
+const float STATION_WAIT_SECONDS = 10.0f;
 
 int currentStationIndex = 0;
-float currentSegmentTime = 0.0f; // Vreme proteklo od pocetka segmenta
-bool isWaiting = true; // Da li autobus ceka na stanici
-float waitTimer = 0.0f; // Tajmer cekanja
+float currentSegmentTime = 0.0f;
+bool isWaiting = true;
+float waitTimer = 0.0f;
 int passengersNumber = 0;
 int punishmentNumber = 0;
 
@@ -237,6 +236,9 @@ int main()
     if (glewInit() != GLEW_OK) return endProgram("GLEW nije uspeo da se inicijalizuje.");
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	GLFWcursor* cursor = loadImageToCursor("res/pointer.png");
+    glfwSetCursor(window, cursor);
 
     srand(time(NULL));
     glfwSetKeyCallback(window, key_callback);
