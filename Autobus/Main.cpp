@@ -16,10 +16,11 @@ unsigned int rectShader;
 unsigned closedIconTexture;
 unsigned openIconTexture;
 unsigned controlIconTexture;
+unsigned nameTexture;
 bool showControls = false;
 
-int screenWidth = 1600;
-int screenHeight = 1200;
+int screenWidth = 1700;
+int screenHeight = 1100;
 const float BUS_SCALE = 0.25f; 
 const float STATION_SCALE = 0.15f;
 
@@ -150,6 +151,7 @@ void drawBus(unsigned int rectShader, unsigned int VAObus, float currentX, float
     glBindVertexArray(0);
 }
 
+// Funkcija za crtanje ikone statusa (otvorena/zatvorena vrata)
 void drawStatusIcon(unsigned int rectShader, unsigned int VAO,
     unsigned int closedTex, unsigned int openTex,
     bool isWaiting) {
@@ -175,6 +177,7 @@ void drawStatusIcon(unsigned int rectShader, unsigned int VAO,
     glBindVertexArray(0);
 }
 
+// Funkcija za crtanje èoveka kontrolera
 void drawControlIcon(unsigned int rectShader, unsigned int VAO, unsigned int controlTex) {
     glUseProgram(rectShader);
     glActiveTexture(GL_TEXTURE0);
@@ -189,6 +192,27 @@ void drawControlIcon(unsigned int rectShader, unsigned int VAO, unsigned int con
     glUniform1f(glGetUniformLocation(rectShader, "uX"), CONTROL_X);
     glUniform1f(glGetUniformLocation(rectShader, "uY"), CONTROL_Y);
     glUniform1f(glGetUniformLocation(rectShader, "uS"), CONTROL_SCALE);
+
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    glBindVertexArray(0);
+}
+
+
+void drawMyName(unsigned int rectShader, unsigned int VAO, unsigned int controlTex) {
+    glUseProgram(rectShader);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, nameTexture);
+
+    const float NAME_SCALE = 0.4f;
+    const float MARGIN = 0.05f;
+    // Bottom-left corner calculation
+    const float NAME_X = -1.0f + (NAME_SCALE / 2.0f) + MARGIN;
+    const float NAME_Y = -1.0f + (NAME_SCALE / 2.0f) + MARGIN;
+
+    glUniform1f(glGetUniformLocation(rectShader, "uX"), NAME_X);
+    glUniform1f(glGetUniformLocation(rectShader, "uY"), NAME_Y);
+    glUniform1f(glGetUniformLocation(rectShader, "uS"), NAME_SCALE);
 
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
@@ -250,6 +274,7 @@ int main()
     preprocessTexture(closedIconTexture, "res/zatvorena.png");
     preprocessTexture(openIconTexture, "res/otvorena.png");
     preprocessTexture(controlIconTexture, "res/kontrola.png");
+    preprocessTexture(nameTexture, "res/ime.png");
 
     rectShader = createShader("rect.vert", "rect.frag");
     glUseProgram(rectShader);
@@ -391,6 +416,7 @@ int main()
         if (showControls) {
             drawControlIcon(rectShader, VAObus, controlIconTexture);
         }
+		drawMyName(rectShader, VAObus, nameTexture);
 
         glfwSwapBuffers(window);
     }
@@ -403,6 +429,10 @@ int main()
     glDeleteVertexArrays(1, &VAOpath);
     glDeleteTextures(1, &busTexture);
     glDeleteTextures(1, &stationTexture);
+    glDeleteTextures(1, &closedIconTexture);
+	glDeleteTextures(1, &openIconTexture);
+	glDeleteTextures(1, &controlIconTexture);
+    glDeleteTextures(1, &nameTexture);
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;

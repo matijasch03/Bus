@@ -137,7 +137,6 @@ GLFWcursor* loadImageToCursor(const char* filePath)
     if (ImageData == NULL)
     {
         std::cerr << "Greska: Kursor nije ucitan! Putanja: " << filePath << std::endl;
-        // Nema potrebe za stbi_image_free(NULL), ali vracanje NULL je kljucno.
         return nullptr;
     }
 
@@ -154,7 +153,7 @@ GLFWcursor* loadImageToCursor(const char* filePath)
 
     GLFWcursor* cursor = glfwCreateCursor(&image, hotspotX, hotspotY);
 
-    // *KLJUCNO*: Oslobadjanje memorije alocirane od strane stbi_load
+    // Oslobadjanje memorije alocirane od strane stbi_load
     stbi_image_free(ImageData);
 
     if (cursor == NULL)
